@@ -1,0 +1,35 @@
+{
+  "name": "@icedq/cli",
+  "version": "0.1.0",
+  "description": "CLI for iceDQ rule and workflow promotion across environments",
+  "type": "module",
+  "main": "src/bin/icedq.js",
+  "bin": {
+    "icedq": "./src/bin/icedq.js"
+  },
+  "scripts": {
+    "test": "node --test tests/unit/",
+    "start": "node src/bin/icedq.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "icedq",
+    "data-quality",
+    "ci-cd",
+    "promotion",
+    "github-action"
+  ],
+  "author": "iceDQ Integration Team",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.0.0",
+    "form-data": "^4.0.0"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ]
+}
