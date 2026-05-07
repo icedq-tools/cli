@@ -52,6 +52,15 @@ icedq import \
 
 A hand-authored `mapping.json` is required in v0.1. Auto-mapping by name (`generate-mapping`) ships in v0.2.
 
+## GitHub Actions
+
+For CI/CD usage via GitHub Actions, see the **[Using the iceDQ GitHub Actions](docs/github-actions.md)** guide. It covers prerequisites (Keycloak `client_credentials` setup, GitHub secrets/environments), quick-start examples, a full Dev → QA → UAT → Prod promotion pipeline, mapping file authoring, self-hosted runners, troubleshooting, and FAQ.
+
+Companion repos:
+
+- [`icedq-tools/export-action`](https://github.com/icedq-tools/export-action)
+- [`icedq-tools/import-action`](https://github.com/icedq-tools/import-action)
+
 ## Roadmap
 
 - v0.2 — `icedq generate-mapping`, `icedq jobs`, `icedq published`, `icedq validate`
