@@ -85,6 +85,7 @@ export class IcedqApiClient {
       } else if (opts.jsonBody !== undefined) {
         headers['Content-Type'] = 'application/json';
         bodyBuffer = Buffer.from(JSON.stringify(opts.jsonBody));
+        headers['Content-Length'] = bodyBuffer.length;
       }
 
       const url = path.startsWith('http')
