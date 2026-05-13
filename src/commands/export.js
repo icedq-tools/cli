@@ -44,13 +44,15 @@ export async function runExport(rawOpts) {
   });
 
   const kindEndpoint = endpointForResource(resource);
-  const body = [
-    {
-      id: rawOpts.id,
-      resource,
-      ...(rawOpts.includeChild ? { includeChild: 'true' } : {})
-    }
-  ];
+  const body = {
+    objects: [
+      {
+        id: rawOpts.id,
+        resource,
+        ...(rawOpts.includeChild ? { includeChild: 'true' } : {})
+      }
+    ]
+  };
 
   log.info(`Submitting export`, { resource, id: rawOpts.id, endpoint: kindEndpoint });
   const submitResp = await client.post(`/api/v1/exports/${kindEndpoint}`, body);
