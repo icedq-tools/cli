@@ -60,10 +60,9 @@ export async function runImport(rawOpts) {
     throw new CliError(`could not parse --mapping-file at ${mappingPath}: ${err.message}`);
   }
 
-  if (rawOpts.useFqn !== undefined) {
+  if (mappingDoc.useFqn === undefined) {
     mappingDoc.useFqn = !!rawOpts.useFqn;
   }
-  if (mappingDoc.useFqn === undefined) mappingDoc.useFqn = false;
 
   const submitParts = {
     file: {
