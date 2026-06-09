@@ -1,6 +1,6 @@
 {
   "name": "@icedq/cli",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "CLI for iceDQ rule and workflow promotion across environments",
   "type": "module",
   "main": "src/bin/icedq.js",
@@ -8,8 +8,9 @@
     "icedq": "./src/bin/icedq.js"
   },
   "scripts": {
-    "test": "node --test tests/unit/*.test.js",
-    "start": "node src/bin/icedq.js"
+    "test": "node --test tests/unit/",
+    "start": "node src/bin/icedq.js",
+    "prepublishOnly": "npm test"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -22,7 +23,10 @@
     "github-action"
   ],
   "author": "iceDQ Integration Team",
-  "license": "MIT",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "homepage": "https://github.com/icedq-tools/cli#readme",
   "repository": {
     "type": "git",
@@ -38,6 +42,7 @@
   "files": [
     "src/",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ]
 }
