@@ -4,14 +4,14 @@
 # (enforced once "Require review from Code Owners" is enabled in branch
 # protection). This protects the release pipeline from unreviewed changes.
 #
-# TODO: replace @icedq-tools/release-team with the real GitHub team or
-#       usernames that own releases.
+# Note: @icedq-tools/maintainers must have write access to this repo, or
+#       GitHub ignores it as a code owner.
 
 # The release/CI pipeline and ownership file itself
-/.github/workflows/   @icedq-tools/release-team
-/.github/CODEOWNERS    @icedq-tools/release-team
+/.github/workflows/   @icedq-tools/maintainers
+/.github/CODEOWNERS    @icedq-tools/maintainers
 
 # Packaging and licensing
-/package.json   @icedq-tools/release-team
-/LICENSE        @icedq-tools/release-team
-/NOTICE         @icedq-tools/release-team
+/package.json   @icedq-tools/maintainers
+/LICENSE        @icedq-tools/maintainers
+/NOTICE         @icedq-tools/maintainers
