@@ -2,6 +2,7 @@
 import { Command, Option } from 'commander';
 import { runExport } from '../commands/export.js';
 import { runImport } from '../commands/import.js';
+import { runGenerateMapping } from '../commands/generate-mapping.js';
 import { CliError } from '../core/errors.js';
 import { log } from '../core/logger.js';
 
@@ -38,6 +39,14 @@ addGlobalOptions(
     .option('--include-child', 'recurse folder children (folder resource only)', false)
     .requiredOption('--output-file <path>', 'where to write the bundle ZIP')
 ).action(async (opts, cmd) => wrap(() => runExport(merge(cmd, opts))));
+
+addGlobalOptions(
+  program
+    .command('generate-mapping')
+    .description('Auto-generate a mapping file from an export bundle')
+    .requiredOption('--bundle <path>', 'path to the export ZIP')
+    .requiredOption('--output-file <path>', 'where to write the mapping JSON')
+).action(async (opts, cmd) => wrap(() => runGenerateMapping(merge(cmd, opts))));
 
 addGlobalOptions(
   program
