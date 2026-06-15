@@ -8,7 +8,7 @@
     "icedq": "./src/bin/icedq.js"
   },
   "scripts": {
-    "test": "node --test tests/unit/",
+    "test": "node --test",
     "start": "node src/bin/icedq.js",
     "prepublishOnly": "npm test"
   },
