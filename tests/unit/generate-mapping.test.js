@@ -154,7 +154,7 @@ describe('runGenerateMapping', () => {
       assert.equal(result.mapping.customFields.length, 2);
       assert.deepEqual(result.mapping.customFields[0], {
         existingId: 'test_field_one',
-        newId: 'fild-001',
+        newId: 'test_field_one',
         action: 'override'
       });
     } finally {
@@ -321,13 +321,13 @@ describe('runGenerateMapping', () => {
       // nonexistent_field is skipped; test_field_one is mapped
       assert.equal(result.mapping.customFields.length, 1);
       assert.equal(result.mapping.customFields[0].existingId, 'test_field_one');
-      assert.equal(result.mapping.customFields[0].newId, 'fild-001');
+      assert.equal(result.mapping.customFields[0].newId, 'test_field_one');
     } finally {
       server.close();
     }
   });
 
-  test('custom field matched in info.sections[0].fields[] → newId = field.id', async () => {
+  test('custom field matched in info.sections[0].fields[] → newId = field.name', async () => {
     const outputFile = path.join(tmpDir, 'mapping-cf-nested.json');
 
     const { server, baseUrl } = await startStubServer((req, res, body) => {
@@ -360,7 +360,7 @@ describe('runGenerateMapping', () => {
     try {
       await runGenerateMapping(makeOpts(baseUrl, bundlePath, outputFile));
       const result = JSON.parse(await readFile(outputFile, 'utf8'));
-      assert.equal(result.mapping.customFields[0].newId, 'fild-deep-001');
+      assert.equal(result.mapping.customFields[0].newId, 'deep_field');
     } finally {
       server.close();
     }
@@ -440,7 +440,7 @@ describe('runGenerateMapping', () => {
     try {
       await runGenerateMapping(makeOpts(baseUrl, bundlePath, outputFile));
       const result = JSON.parse(await readFile(outputFile, 'utf8'));
-      assert.equal(result.mapping.customFields[0].newId, 'fild-c1');
+      assert.equal(result.mapping.customFields[0].newId, 'field_from_check_screen');
     } finally {
       server.close();
     }

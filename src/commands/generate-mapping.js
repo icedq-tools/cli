@@ -168,8 +168,8 @@ async function resolveCustomFields(client, srcCustomFields) {
     const sections = screen?.info?.sections || [];
     for (const section of sections) {
       for (const field of section.fields || []) {
-        if (field.name && field.id) {
-          fieldMap.set(field.name.toLowerCase(), field.id);
+        if (field.name) {
+          fieldMap.set(field.name.toLowerCase(), field.name);
         }
       }
     }
