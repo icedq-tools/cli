@@ -25,7 +25,7 @@ export async function runExport(rawOpts) {
     throw new CliError(`--resource must be one of: rule, workflow, folder`);
   }
   if (!rawOpts.id) throw new CliError('--id is required');
-  if (!rawOpts.outputFile) throw new CliError('--output-file is required');
+  if (!rawOpts.output) throw new CliError('--output is required');
 
   const cfg = loadConfig(rawOpts);
   const auth = new KeycloakClientCredentialsAuth({
@@ -66,10 +66,10 @@ export async function runExport(rawOpts) {
   const start = Date.now();
   const { status, attempts, elapsedMs } = await pollTask(client, 'exports', taskId, {
     timeoutSec: cfg.timeoutSec,
-    onTick: ({ status: s, attempt }) => log.debug('tick', { status: s, attempt })
+    onTick: ({ status: s, attempt, elapsedMs: e }) => log.info('Polling status', { status: s, attempt, elapsedMs: e })
   });
 
-  let outputFile = rawOpts.outputFile;
+  let outputFile = rawOpts.output;
   let logTail;
 
   if (isSuccess(status)) {
@@ -94,7 +94,7 @@ export async function runExport(rawOpts) {
     outputFile: isSuccess(status) ? outputFile : undefined,
     elapsedSinceSubmitMs: Date.now() - start
   };
-  new Reporter(rawOpts.output || 'text').emit(result);
+  new Reporter(rawOpts.outputFormat || 'text').emit(result);
 
   if (!isSuccess(status)) {
     throw new TaskFailedError(taskId, 'export', status, logTail);

@@ -40,11 +40,11 @@ function maskTokens(value) {
 
 function emit(name, lvl, msg, ctx) {
   if (lvl > level) return;
-  const stamp = new Date().toISOString();
   const safeCtx = ctx ? maskTokens(ctx) : undefined;
+  const prefix = level >= LEVELS.debug ? `[${new Date().toISOString()}] ${name.toUpperCase()} ` : '';
   const line = safeCtx
-    ? `[${stamp}] ${name.toUpperCase()} ${maskTokens(msg)} ${JSON.stringify(safeCtx)}`
-    : `[${stamp}] ${name.toUpperCase()} ${maskTokens(msg)}`;
+    ? `${prefix}${maskTokens(msg)} ${JSON.stringify(safeCtx)}`
+    : `${prefix}${maskTokens(msg)}`;
   process.stderr.write(line + '\n');
 }
 

@@ -1,4 +1,8 @@
-import { ConfigError } from './errors.js';
+import { readFileSync } from 'node:fs';
+import { ConfigError, CliError } from './errors.js';
+import { log } from './logger.js';
+
+const MIN_TIMEOUT_SEC = 30;
 
 const FIELD_TO_ENV = {
   icedqUrl: 'ICEDQ_URL',
@@ -42,19 +46,43 @@ function trimTrailingSlash(url) {
   return typeof url === 'string' ? url.replace(/\/+$/, '') : url;
 }
 
+function readSecretFile(filePath) {
+  let content;
+  try {
+    content = readFileSync(filePath, 'utf8').trim();
+  } catch (err) {
+    throw new CliError(`could not read --client-secret-file at ${filePath}: ${err.message}`, { exitCode: 2 });
+  }
+  if (!content) {
+    throw new CliError(`--client-secret-file at ${filePath} is empty`, { exitCode: 2 });
+  }
+  return content;
+}
+
 export function loadConfig(opts = {}, env = process.env, { requireWorkspace = true } = {}) {
   const required = requireWorkspace ? [...DEFAULT_REQUIRED, 'workspaceId'] : DEFAULT_REQUIRED;
+
+  const clientSecret = opts.clientSecretFile
+    ? readSecretFile(opts.clientSecretFile)
+    : pick(opts, 'clientSecret', env);
+
+  const timeoutSec = toInt(pick(opts, 'timeout', env), 1800);
+  if (timeoutSec < MIN_TIMEOUT_SEC) {
+    log.warn(
+      `--timeout of ${timeoutSec}s is below the recommended minimum of ${MIN_TIMEOUT_SEC}s — the operation may fail before it has a realistic chance to complete`
+    );
+  }
 
   const cfg = {
     icedqUrl: trimTrailingSlash(pick(opts, 'icedqUrl', env)),
     keycloakUrl: trimTrailingSlash(pick(opts, 'keycloakUrl', env)),
     clientId: pick(opts, 'clientId', env),
-    clientSecret: pick(opts, 'clientSecret', env),
+    clientSecret,
     orgId: pick(opts, 'orgId', env),
     accountId: pick(opts, 'accountId', env),
     workspaceId: pick(opts, 'workspaceId', env),
     verifySsl: toBool(pick(opts, 'verifySsl', env), true),
-    timeoutSec: toInt(pick(opts, 'timeout', env), 1800)
+    timeoutSec
   };
 
   const missing = required.filter((k) => !cfg[k]);
@@ -65,4 +93,4 @@ export function loadConfig(opts = {}, env = process.env, { requireWorkspace = tr
   return Object.freeze(cfg);
 }
 
-export const _internal = { FIELD_TO_ENV, DEFAULT_REQUIRED };
+export const _internal = { FIELD_TO_ENV, DEFAULT_REQUIRED, MIN_TIMEOUT_SEC };

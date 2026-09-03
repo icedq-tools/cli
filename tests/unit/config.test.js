@@ -1,7 +1,10 @@
-import { test, describe } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { writeFile, mkdir, rm } from 'node:fs/promises';
+import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { loadConfig } from '../../src/core/config.js';
-import { ConfigError } from '../../src/core/errors.js';
+import { ConfigError, CliError } from '../../src/core/errors.js';
 
 describe('loadConfig', () => {
   test('reads from flags first', () => {
@@ -102,6 +105,54 @@ describe('loadConfig', () => {
     const cfg = loadConfig({}, baseEnv());
     assert.throws(() => {
       cfg.icedqUrl = 'changed';
+    });
+  });
+
+  test('does not throw when timeout is below the recommended minimum (warns only)', () => {
+    const cfg = loadConfig({ timeout: '5' }, baseEnv());
+    assert.equal(cfg.timeoutSec, 5);
+  });
+
+  describe('clientSecretFile', () => {
+    let tmpDir;
+
+    before(async () => {
+      tmpDir = path.join(tmpdir(), `icedq-config-test-${Date.now()}`);
+      await mkdir(tmpDir, { recursive: true });
+    });
+
+    after(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    test('reads and trims the secret from --client-secret-file', async () => {
+      const filePath = path.join(tmpDir, 'secret.txt');
+      await writeFile(filePath, '  file-secret\n', 'utf8');
+      const cfg = loadConfig({ clientSecretFile: filePath }, baseEnv());
+      assert.equal(cfg.clientSecret, 'file-secret');
+    });
+
+    test('--client-secret-file takes precedence over --client-secret flag and env', async () => {
+      const filePath = path.join(tmpDir, 'secret2.txt');
+      await writeFile(filePath, 'from-file', 'utf8');
+      const cfg = loadConfig({ clientSecretFile: filePath, clientSecret: 'from-flag' }, baseEnv());
+      assert.equal(cfg.clientSecret, 'from-file');
+    });
+
+    test('throws CliError when the file is empty', async () => {
+      const filePath = path.join(tmpDir, 'empty.txt');
+      await writeFile(filePath, '   \n', 'utf8');
+      assert.throws(
+        () => loadConfig({ clientSecretFile: filePath }, baseEnv()),
+        (err) => err instanceof CliError && err.message.includes('empty')
+      );
+    });
+
+    test('throws CliError when the file does not exist', () => {
+      assert.throws(
+        () => loadConfig({ clientSecretFile: path.join(tmpDir, 'missing.txt') }, baseEnv()),
+        (err) => err instanceof CliError
+      );
     });
   });
 });

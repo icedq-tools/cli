@@ -33,8 +33,8 @@ Set the following environment variables (or pass equivalent flags):
 Initiates an export, polls until complete, downloads the bundle.
 
 ```bash
-icedq export --resource workflow --id wkfl-... --output-file ./finance.zip
-icedq export --resource folder   --id fldr-... --include-child --output-file ./finance.zip
+icedq export --resource workflow --id wkfl-... --output ./finance.zip
+icedq export --resource folder   --id fldr-... --include-child --output ./finance.zip
 ```
 
 ### `icedq import`

@@ -73,7 +73,7 @@ const SCREENS_RESP = [
 function makeOpts(baseUrl, bundlePath, outputFile) {
   return {
     bundle: bundlePath,
-    outputFile,
+    output: outputFile,
     icedqUrl: baseUrl,
     keycloakUrl: `${baseUrl}/realms/test`,
     clientId: 'cid',
@@ -81,7 +81,7 @@ function makeOpts(baseUrl, bundlePath, outputFile) {
     orgId: 'org-1',
     accountId: 'acct-1',
     workspaceId: 'wksc-1',
-    output: 'json'
+    outputFormat: 'json'
   };
 }
 

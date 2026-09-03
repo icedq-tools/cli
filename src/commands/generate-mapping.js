@@ -14,7 +14,7 @@ export async function runGenerateMapping(rawOpts) {
   if (rawOpts.quiet) setLevel('error');
 
   if (!rawOpts.bundle) throw new CliError('--bundle is required');
-  if (!rawOpts.outputFile) throw new CliError('--output-file is required');
+  if (!rawOpts.output) throw new CliError('--output is required');
 
   const cfg = loadConfig(rawOpts);
   const auth = new KeycloakClientCredentialsAuth({
@@ -74,7 +74,7 @@ export async function runGenerateMapping(rawOpts) {
     mapping: { connections, parameters, customFields }
   };
 
-  const outputFile = path.resolve(rawOpts.outputFile);
+  const outputFile = path.resolve(rawOpts.output);
   await mkdir(path.dirname(outputFile), { recursive: true });
   await writeFile(outputFile, JSON.stringify(mappingDoc, null, 2), 'utf8');
   log.info('Mapping file written', { outputFile });
@@ -86,7 +86,7 @@ export async function runGenerateMapping(rawOpts) {
     parameters: parameters.length,
     customFields: customFields.length
   };
-  new Reporter(rawOpts.output || 'text').emit(result);
+  new Reporter(rawOpts.outputFormat || 'text').emit(result);
 }
 
 async function resolveConnections(client, srcConnections) {

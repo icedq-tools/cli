@@ -7,17 +7,19 @@ import { log } from './logger.js';
 
 const STATUS_RETRY_5XX = 3;
 const STATUS_RETRY_DELAY_MS = 5000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 export class IcedqApiClient {
-  constructor({ baseUrl, orgId, accountId, workspaceId, auth, verifySsl = true }) {
+  constructor({ baseUrl, orgId, accountId, workspaceId, auth, verifySsl = true, requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS }) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.orgId = orgId;
     this.accountId = accountId;
     this.workspaceId = workspaceId;
     this.auth = auth;
     this.verifySsl = verifySsl;
+    this.requestTimeoutMs = requestTimeoutMs;
   }
 
   _buildHeaders(extra = {}, { includeWorkspace = true } = {}) {
@@ -153,6 +155,9 @@ export class IcedqApiClient {
             resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString('utf8') });
           }
         });
+      });
+      req.setTimeout(this.requestTimeoutMs, () => {
+        req.destroy(new Error(`Request timed out after ${this.requestTimeoutMs}ms`));
       });
       req.on('error', reject);
       if (bodyBuffer) req.write(bodyBuffer);
