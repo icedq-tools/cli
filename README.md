@@ -26,6 +26,14 @@ Set the following environment variables (or pass equivalent flags):
 | `ICEDQ_ACCOUNT_ID` | iceDQ account ID |
 | `ICEDQ_WORKSPACE_ID` | Source/target workspace ID |
 
+For the GitHub Actions workflows, injecting `ICEDQ_CLIENT_SECRET` from a GitHub secret is already the correct, industry-standard approach — GitHub masks it in logs, and hosted runners are single-job and ephemeral. There's no need to change how you use the Actions.
+
+If you're running the CLI directly — locally, or on a self-hosted runner — you also have the option of `--client-secret-file <path>`, which reads the secret from a file instead (its content is used verbatim, trimmed of surrounding whitespace). It takes precedence over both `--client-secret` and `ICEDQ_CLIENT_SECRET` if provided, and avoids the secret ever appearing in your shell history or `ps`/process-list output the way typing `--client-secret` directly would:
+
+```bash
+icedq export --resource workflow --id wkfl-... --output ./finance.zip --client-secret-file ./client-secret.txt
+```
+
 ## Commands (v0.1)
 
 ### `icedq export`

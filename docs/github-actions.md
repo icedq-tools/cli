@@ -1,8 +1,8 @@
 # Using the iceDQ GitHub Actions
 
-This guide walks through using [`icedq-tools/export-action`](https://github.com/icedq-tools/export-action) and [`icedq-tools/import-action`](https://github.com/icedq-tools/import-action) to promote iceDQ rules and workflows across environments (Dev → QA → UAT → Prod) directly from GitHub Actions workflows.
+This guide walks through using [`icedq-tools/export-action`](https://github.com/icedq-tools/export-action), [`icedq-tools/generate-mapping-action`](https://github.com/icedq-tools/generate-mapping-action), and [`icedq-tools/import-action`](https://github.com/icedq-tools/import-action) to promote iceDQ rules and workflows across environments (Dev → QA → UAT → Prod) directly from GitHub Actions workflows.
 
-Both Actions are thin composite wrappers around [`@icedq/cli`](https://www.npmjs.com/package/@icedq/cli). Anything achievable in YAML is also achievable from a `run: icedq ...` step — the Actions just save you boilerplate.
+All three Actions are thin composite wrappers around [`@icedq/cli`](https://www.npmjs.com/package/@icedq/cli). Anything achievable in YAML is also achievable from a `run: icedq ...` step — the Actions just save you boilerplate.
 
 ---
 
@@ -26,6 +26,7 @@ Both Actions are thin composite wrappers around [`@icedq/cli`](https://www.npmjs
 | Action | What it does |
 |---|---|
 | `icedq-tools/export-action` | Initiates an export, polls until complete, downloads the bundle ZIP, optionally uploads it as a workflow artifact. |
+| `icedq-tools/generate-mapping-action` | Auto-generates a mapping JSON file from an export bundle by resolving connections, parameters, and custom fields by name against the target workspace. |
 | `icedq-tools/import-action` | Submits a bundle to a target workspace, polls until complete, parses the import log for skipped rules, optionally fails the workflow on any skip (`strict: true`). |
 
 Both Actions handle:
@@ -278,7 +279,7 @@ jobs:
 
 ## Authoring mapping files
 
-In v0.1, the import Action requires a hand-authored mapping JSON file (`mapping-file` input). Auto-generation by name (`icedq generate-mapping`) ships in v0.2.
+The import Action requires a mapping JSON file (`mapping-file` input). You can author one by hand, or auto-generate it from an export bundle with the **[iceDQ Generate Mapping](https://github.com/icedq-tools/generate-mapping-action)** Action, which resolves connections, parameters, and custom fields by name against the target workspace.
 
 ### Mapping document shape
 
@@ -326,7 +327,7 @@ Store mapping files in your repo (e.g., `mappings/qa.json`, `mappings/uat.json`,
 
 ## Action inputs reference
 
-### Common to both Actions
+### Common to all three Actions
 
 | Input | Required | Default | Description |
 |---|---|---|---|
@@ -336,10 +337,11 @@ Store mapping files in your repo (e.g., `mappings/qa.json`, `mappings/uat.json`,
 | `client-secret` | yes | — | OAuth client secret |
 | `org-id` | yes | — | Org ID |
 | `account-id` | yes | — | Account ID |
-| `workspace-id` | yes | — | Workspace ID (source for export, target for import) |
-| `timeout` | no | `1800` | Polling timeout in seconds |
+| `workspace-id` | yes | — | Workspace ID (source for export, target for generate-mapping/import) |
 | `cli-version` | no | `latest` | Pin a specific `@icedq/cli` version |
 | `verify-ssl` | no | `true` | Verify TLS certificates |
+
+Note: `timeout` is **not** common to all three — `generate-mapping-action` is a synchronous call (upload bundle, resolve mappings, write file) with no async task to poll, so it has no `timeout` input. `export-action` and `import-action` both poll a task to completion and share it (see their tables below).
 
 ### `export-action` only
 
@@ -349,8 +351,18 @@ Store mapping files in your repo (e.g., `mappings/qa.json`, `mappings/uat.json`,
 | `id` | yes | — | Resource UUID |
 | `include-child` | no | `false` | Recurse folder children (folder only) |
 | `output-file` | yes | — | Path to write the bundle ZIP |
+| `timeout` | no | `1800` | Polling timeout in seconds |
 | `upload-artifact` | no | `true` | Upload bundle as workflow artifact |
 | `artifact-name` | no | `icedq-bundle` | Workflow artifact name |
+
+### `generate-mapping-action` only
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `bundle` | yes | — | Path to the export bundle ZIP (output of `export-action`) |
+| `output-file` | no | `icedq-mapping.json` | Path to write the generated mapping JSON |
+| `upload-artifact` | no | `true` | Upload the mapping file as a workflow artifact |
+| `artifact-name` | no | `icedq-mapping` | Workflow artifact name |
 
 ### `import-action` only
 
@@ -362,6 +374,7 @@ Store mapping files in your repo (e.g., `mappings/qa.json`, `mappings/uat.json`,
 | `use-fqn` | no | `false` | Resolve by name instead of UUID (recovery flag) |
 | `strict` | no | `false` | Exit non-zero on any skipped rule |
 | `terminate-on-conflict` | no | `false` | Cancel any active import in the target workspace before submitting |
+| `timeout` | no | `1800` | Polling timeout in seconds |
 | `retain-log` | no | — | Path to write the full import log |
 
 ---
@@ -375,6 +388,12 @@ Store mapping files in your repo (e.g., `mappings/qa.json`, `mappings/uat.json`,
 | `task-id` | iceDQ `taskInstanceId` |
 | `status` | Terminal status (`Completed`, `Terminated`, `Error`) |
 | `bundle-path` | Path to the downloaded bundle ZIP |
+
+### `generate-mapping-action`
+
+| Output | Description |
+|---|---|
+| `mapping-file` | Path to the generated mapping JSON file |
 
 ### `import-action`
 
@@ -455,13 +474,13 @@ The Actions are runner-agnostic — no other configuration changes are needed. M
 Yes. The Actions are convenience wrappers; the CLI is the source of truth. `npm install -g @icedq/cli` and use `icedq export ...` / `icedq import ...` from a `run:` step or anywhere else (Jenkins, Azure DevOps, Cloud Build, ad-hoc terminal).
 
 **Q: Why is `mapping-file` required? Can't the import figure it out?**
-Auto-generation by name is in v0.2 (`icedq generate-mapping`). For v0.1, you author mapping files by hand. Since UUIDs differ per workspace, the mapping is what tells the import which target UUID corresponds to each source UUID.
+Since UUIDs differ per workspace, the mapping is what tells the import which target UUID corresponds to each source UUID. You don't have to author it by hand — the **[iceDQ Generate Mapping](https://github.com/icedq-tools/generate-mapping-action)** Action (or `icedq generate-mapping` directly) resolves it automatically by name against the target workspace; see [Authoring mapping files](#authoring-mapping-files).
 
 **Q: Can I export and import in a single job?**
 Yes — you don't need to upload an artifact between jobs if the same job does both. But splitting them across jobs gives you the artifact for forensics and lets each environment require independent reviewer approval.
 
 **Q: Does the Action support GitHub Enterprise Server?**
-Yes — both Actions are pure composite Actions with no GHES-specific code paths. As long as your runners can reach the iceDQ API and Keycloak, GHES works the same as github.com.
+Yes — all three Actions are pure composite Actions with no GHES-specific code paths. As long as your runners can reach the iceDQ API and Keycloak, GHES works the same as github.com.
 
 **Q: How do I migrate from manual `curl` scripts?**
 Replace your auth + polling boilerplate with the Action. Existing mapping JSON files in API shape work as-is — pass them via `mapping-file`.
@@ -472,4 +491,5 @@ Replace your auth + polling boilerplate with the Action. Existing mapping JSON f
 
 - [`@icedq/cli` README](https://github.com/icedq-tools/cli#readme) — direct CLI usage
 - [`icedq-tools/export-action`](https://github.com/icedq-tools/export-action) — Action source and per-input reference
+- [`icedq-tools/generate-mapping-action`](https://github.com/icedq-tools/generate-mapping-action) — Action source and per-input reference
 - [`icedq-tools/import-action`](https://github.com/icedq-tools/import-action) — Action source and per-input reference
