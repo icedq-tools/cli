@@ -88,7 +88,7 @@ export async function runImport(rawOpts) {
           (m) => `${m.fieldName ? m.fieldName + ': ' : ''}${m.violation || m.message || ''}`
         )
       };
-      new Reporter(rawOpts.output || 'text').emit(result);
+      new Reporter(rawOpts.outputFormat || 'text').emit(result);
       throw err;
     }
     if (err instanceof ApiError && err.status === 409 && rawOpts.terminateOnConflict) {
@@ -107,7 +107,7 @@ export async function runImport(rawOpts) {
   const start = Date.now();
   const { status, elapsedMs, attempts } = await pollTask(client, 'imports', taskId, {
     timeoutSec: cfg.timeoutSec,
-    onTick: ({ status: s, attempt }) => log.debug('tick', { status: s, attempt })
+    onTick: ({ status: s, attempt, elapsedMs: e }) => log.info('Polling status', { status: s, attempt, elapsedMs: e })
   });
 
   let logText = '';

@@ -5,6 +5,7 @@ import { AuthError } from './errors.js';
 import { log } from './logger.js';
 
 const REFRESH_BUFFER_MS = 30 * 1000;
+const REQUEST_TIMEOUT_MS = 30000;
 
 export class KeycloakClientCredentialsAuth {
   constructor({ keycloakUrl, clientId, clientSecret, verifySsl = true }) {
@@ -93,7 +94,10 @@ export class KeycloakClientCredentialsAuth {
           }
         });
       });
-      req.on('error', (err) => reject(new AuthError(err.message, { cause: err })));
+      req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+        req.destroy(new AuthError(`Request to Keycloak timed out after ${REQUEST_TIMEOUT_MS}ms`));
+      });
+      req.on('error', (err) => reject(err instanceof AuthError ? err : new AuthError(err.message, { cause: err })));
       req.write(body);
       req.end();
     });

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module';
 import { Command, Option } from 'commander';
 import { runExport } from '../commands/export.js';
 import { runImport } from '../commands/import.js';
@@ -6,12 +7,15 @@ import { runGenerateMapping } from '../commands/generate-mapping.js';
 import { CliError } from '../core/errors.js';
 import { log } from '../core/logger.js';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../../package.json');
+
 const program = new Command();
 
 program
   .name('icedq')
   .description('CLI for iceDQ rule and workflow promotion')
-  .version('0.1.0');
+  .version(version);
 
 function addGlobalOptions(cmd) {
   cmd
@@ -19,12 +23,13 @@ function addGlobalOptions(cmd) {
     .option('--keycloak-url <url>', 'Keycloak token endpoint base [env: ICEDQ_KEYCLOAK_URL]')
     .option('--client-id <id>', 'OAuth client ID [env: ICEDQ_CLIENT_ID]')
     .option('--client-secret <secret>', 'OAuth client secret [env: ICEDQ_CLIENT_SECRET]')
+    .option('--client-secret-file <path>', 'read the OAuth client secret from a file (overrides --client-secret and env)')
     .option('--org-id <id>', '[env: ICEDQ_ORG_ID]')
     .option('--account-id <id>', '[env: ICEDQ_ACCOUNT_ID]')
     .option('--workspace-id <id>', '[env: ICEDQ_WORKSPACE_ID]')
     .option('--verify-ssl <bool>', 'verify TLS (default true)')
     .option('--timeout <seconds>', 'polling timeout in seconds', '1800')
-    .addOption(new Option('--output <format>', 'output format').choices(['text', 'json', 'markdown']).default('text'))
+    .addOption(new Option('--output-format <format>', 'output format').choices(['text', 'json', 'markdown']).default('text'))
     .option('-v, --verbose', 'verbose logging')
     .option('-q, --quiet', 'suppress non-error logging');
   return cmd;
@@ -37,7 +42,7 @@ addGlobalOptions(
     .requiredOption('--resource <kind>', 'rule | workflow | folder')
     .requiredOption('--id <uuid>', 'resource UUID')
     .option('--include-child', 'recurse folder children (folder resource only)', false)
-    .requiredOption('--output-file <path>', 'where to write the bundle ZIP')
+    .requiredOption('--output <path>', 'where to write the bundle ZIP')
 ).action(async (opts, cmd) => wrap(() => runExport(merge(cmd, opts))));
 
 addGlobalOptions(
@@ -45,7 +50,7 @@ addGlobalOptions(
     .command('generate-mapping')
     .description('Auto-generate a mapping file from an export bundle')
     .requiredOption('--bundle <path>', 'path to the export ZIP')
-    .requiredOption('--output-file <path>', 'where to write the mapping JSON')
+    .requiredOption('--output <path>', 'where to write the mapping JSON')
 ).action(async (opts, cmd) => wrap(() => runGenerateMapping(merge(cmd, opts))));
 
 addGlobalOptions(
