@@ -34,7 +34,7 @@ If you're running the CLI directly — locally, or on a self-hosted runner — y
 icedq export --resource workflow --id wkfl-... --output ./finance.zip --client-secret-file ./client-secret.txt
 ```
 
-## Commands (v0.1)
+## Commands
 
 ### `icedq export`
 
@@ -43,6 +43,14 @@ Initiates an export, polls until complete, downloads the bundle.
 ```bash
 icedq export --resource workflow --id wkfl-... --output ./finance.zip
 icedq export --resource folder   --id fldr-... --include-child --output ./finance.zip
+```
+
+### `icedq generate-mapping`
+
+Uploads an export bundle, resolves connections/parameters/custom fields by name against the target workspace, and writes a ready-to-use mapping JSON.
+
+```bash
+icedq generate-mapping --bundle ./finance.zip --output ./mapping.json
 ```
 
 ### `icedq import`
@@ -58,20 +66,18 @@ icedq import \
   --retain-log ./icedq-import.log
 ```
 
-A hand-authored `mapping.json` is required in v0.1. Auto-mapping by name (`generate-mapping`) ships in v0.2.
+A hand-authored `mapping.json` works too — see each companion Action's own documentation (linked below) for examples.
 
 ## GitHub Actions
 
-For CI/CD usage via GitHub Actions, see the **[Using the iceDQ GitHub Actions](docs/github-actions.md)** guide. It covers prerequisites (Keycloak `client_credentials` setup, GitHub secrets/environments), quick-start examples, a full Dev → QA → UAT → Prod promotion pipeline, mapping file authoring, self-hosted runners, troubleshooting, and FAQ.
+For CI/CD usage via GitHub Actions, use these three companion Actions — each documentation covers its own inputs/outputs, usage examples:
 
-Companion repos:
-
-- [`icedq-tools/export-action`](https://github.com/icedq-tools/export-action)
-- [`icedq-tools/import-action`](https://github.com/icedq-tools/import-action)
+- [`icedq-tools/export-action`](https://github.com/marketplace/actions/icedq-export) — export rules/workflows/folders to a bundle
+- [`icedq-tools/generate-mapping-action`](https://github.com/marketplace/actions/icedq-generate-mapping) — auto-generate a mapping file from a bundle
+- [`icedq-tools/import-action`](https://github.com/marketplace/actions/icedq-import) — import a bundle into a target workspace
 
 ## Roadmap
 
-- v0.2 — `icedq generate-mapping`, `icedq jobs`, `icedq published`, `icedq validate`
-- v0.2 — companion GitHub Actions: `icedq/export-action`, `icedq/validate-action`
-
-The build specification is the source of truth for behavior.
+- **Connections** — export and import support, alongside the existing rules, workflows, and folders.
+- **`icedq run`** — trigger a rule or workflow run directly (with a companion `run-action`), rather than only promoting them between environments.
+- **`icedq status`** — check on or reattach to an existing export/import/run task, for recovering from a timed-out or interrupted poll.
