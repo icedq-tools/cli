@@ -1,6 +1,6 @@
 {
   "name": "@icedq/cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "CLI for iceDQ rule and workflow promotion across environments",
   "type": "module",
   "main": "src/bin/icedq.js",
