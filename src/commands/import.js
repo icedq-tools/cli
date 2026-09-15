@@ -34,7 +34,7 @@ export async function runImport(rawOpts) {
     verifySsl: cfg.verifySsl
   });
   const client = new IcedqApiClient({
-    baseUrl: cfg.icedqUrl,
+    baseUrl: cfg.icedqBaseUrl,
     orgId: cfg.orgId,
     accountId: cfg.accountId,
     workspaceId: cfg.workspaceId,

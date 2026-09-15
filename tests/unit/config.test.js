@@ -10,7 +10,7 @@ describe('loadConfig', () => {
   test('reads from flags first', () => {
     const cfg = loadConfig(
       {
-        icedqUrl: 'https://app.icedq.com/',
+        icedqBaseUrl: 'https://app.icedq.com/',
         keycloakUrl: 'https://auth/realms/x',
         clientId: 'cid',
         clientSecret: 'sec',
@@ -20,7 +20,7 @@ describe('loadConfig', () => {
       },
       {}
     );
-    assert.equal(cfg.icedqUrl, 'https://app.icedq.com');
+    assert.equal(cfg.icedqBaseUrl, 'https://app.icedq.com');
     assert.equal(cfg.clientId, 'cid');
     assert.equal(cfg.verifySsl, true);
     assert.equal(cfg.timeoutSec, 1800);
@@ -30,7 +30,7 @@ describe('loadConfig', () => {
     const cfg = loadConfig(
       {},
       {
-        ICEDQ_URL: 'https://e',
+        ICEDQ_BASE_URL: 'https://e',
         ICEDQ_KEYCLOAK_URL: 'https://k',
         ICEDQ_CLIENT_ID: 'cid',
         ICEDQ_CLIENT_SECRET: 'sec',
@@ -39,15 +39,15 @@ describe('loadConfig', () => {
         ICEDQ_WORKSPACE_ID: 'w'
       }
     );
-    assert.equal(cfg.icedqUrl, 'https://e');
+    assert.equal(cfg.icedqBaseUrl, 'https://e');
     assert.equal(cfg.workspaceId, 'w');
   });
 
   test('flag overrides env', () => {
     const cfg = loadConfig(
-      { icedqUrl: 'https://flag', clientId: 'flag-cid' },
+      { icedqBaseUrl: 'https://flag', clientId: 'flag-cid' },
       {
-        ICEDQ_URL: 'https://env',
+        ICEDQ_BASE_URL: 'https://env',
         ICEDQ_KEYCLOAK_URL: 'https://k',
         ICEDQ_CLIENT_ID: 'env-cid',
         ICEDQ_CLIENT_SECRET: 'sec',
@@ -56,7 +56,7 @@ describe('loadConfig', () => {
         ICEDQ_WORKSPACE_ID: 'w'
       }
     );
-    assert.equal(cfg.icedqUrl, 'https://flag');
+    assert.equal(cfg.icedqBaseUrl, 'https://flag');
     assert.equal(cfg.clientId, 'flag-cid');
   });
 
@@ -68,11 +68,11 @@ describe('loadConfig', () => {
       assert.ok(err instanceof ConfigError);
       assert.deepEqual(err.missing.sort(), [
         'ICEDQ_ACCOUNT_ID',
+        'ICEDQ_BASE_URL',
         'ICEDQ_CLIENT_ID',
         'ICEDQ_CLIENT_SECRET',
         'ICEDQ_KEYCLOAK_URL',
         'ICEDQ_ORG_ID',
-        'ICEDQ_URL',
         'ICEDQ_WORKSPACE_ID'
       ]);
     }
@@ -81,7 +81,7 @@ describe('loadConfig', () => {
   test('does not require workspace when requireWorkspace=false', () => {
     const cfg = loadConfig(
       {
-        icedqUrl: 'https://e',
+        icedqBaseUrl: 'https://e',
         keycloakUrl: 'https://k',
         clientId: 'cid',
         clientSecret: 'sec',
@@ -104,7 +104,7 @@ describe('loadConfig', () => {
   test('returns frozen config', () => {
     const cfg = loadConfig({}, baseEnv());
     assert.throws(() => {
-      cfg.icedqUrl = 'changed';
+      cfg.icedqBaseUrl = 'changed';
     });
   });
 
@@ -159,7 +159,7 @@ describe('loadConfig', () => {
 
 function baseEnv() {
   return {
-    ICEDQ_URL: 'https://e',
+    ICEDQ_BASE_URL: 'https://e',
     ICEDQ_KEYCLOAK_URL: 'https://k',
     ICEDQ_CLIENT_ID: 'cid',
     ICEDQ_CLIENT_SECRET: 'sec',

@@ -74,7 +74,7 @@ function makeOpts(baseUrl, bundlePath, outputFile) {
   return {
     bundle: bundlePath,
     output: outputFile,
-    icedqUrl: baseUrl,
+    icedqBaseUrl: baseUrl,
     keycloakUrl: `${baseUrl}/realms/test`,
     clientId: 'cid',
     clientSecret: 'sec',

@@ -19,7 +19,7 @@ program
 
 function addGlobalOptions(cmd) {
   cmd
-    .option('--icedq-url <url>', 'iceDQ instance base URL [env: ICEDQ_URL]')
+    .option('--icedq-base-url <url>', 'iceDQ instance base URL [env: ICEDQ_BASE_URL]')
     .option('--keycloak-url <url>', 'Keycloak token endpoint base [env: ICEDQ_KEYCLOAK_URL]')
     .option('--client-id <id>', 'OAuth client ID [env: ICEDQ_CLIENT_ID]')
     .option('--client-secret <secret>', 'OAuth client secret [env: ICEDQ_CLIENT_SECRET]')

@@ -18,7 +18,7 @@ Set the following environment variables (or pass equivalent flags):
 
 | Variable | Description |
 |---|---|
-| `ICEDQ_URL` | iceDQ instance base URL, e.g. `https://app.icedq.com` |
+| `ICEDQ_BASE_URL` | iceDQ instance base URL, e.g. `https://app.icedq.com` |
 | `ICEDQ_KEYCLOAK_URL` | Keycloak token endpoint base, e.g. `https://auth.icedq.com/auth/realms/icedq` |
 | `ICEDQ_CLIENT_ID` | OAuth client ID (`client_credentials` grant) |
 | `ICEDQ_CLIENT_SECRET` | OAuth client secret |
