@@ -5,7 +5,7 @@ import { log } from './logger.js';
 const MIN_TIMEOUT_SEC = 30;
 
 const FIELD_TO_ENV = {
-  icedqUrl: 'ICEDQ_URL',
+  icedqBaseUrl: 'ICEDQ_BASE_URL',
   keycloakUrl: 'ICEDQ_KEYCLOAK_URL',
   clientId: 'ICEDQ_CLIENT_ID',
   clientSecret: 'ICEDQ_CLIENT_SECRET',
@@ -16,7 +16,7 @@ const FIELD_TO_ENV = {
   timeout: 'ICEDQ_TIMEOUT'
 };
 
-const DEFAULT_REQUIRED = ['icedqUrl', 'keycloakUrl', 'clientId', 'clientSecret', 'orgId', 'accountId'];
+const DEFAULT_REQUIRED = ['icedqBaseUrl', 'keycloakUrl', 'clientId', 'clientSecret', 'orgId', 'accountId'];
 
 function pick(opts, key, env) {
   const flag = opts[key];
@@ -74,7 +74,7 @@ export function loadConfig(opts = {}, env = process.env, { requireWorkspace = tr
   }
 
   const cfg = {
-    icedqUrl: trimTrailingSlash(pick(opts, 'icedqUrl', env)),
+    icedqBaseUrl: trimTrailingSlash(pick(opts, 'icedqBaseUrl', env)),
     keycloakUrl: trimTrailingSlash(pick(opts, 'keycloakUrl', env)),
     clientId: pick(opts, 'clientId', env),
     clientSecret,
