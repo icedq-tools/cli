@@ -140,7 +140,7 @@ export async function runImport(rawOpts) {
     hardErrors: parsed.hardErrors,
     elapsedSinceSubmitMs: Date.now() - start
   };
-  new Reporter(rawOpts.output || 'text').emit(result);
+  new Reporter(rawOpts.outputFormat || 'text').emit(result);
 
   if (!isSuccess(status)) {
     throw new TaskFailedError(taskId, 'import', status);
