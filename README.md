@@ -53,6 +53,18 @@ Uploads an export bundle, resolves connections/parameters/custom fields by name 
 icedq generate-mapping --bundle ./finance.zip --output ./mapping.json
 ```
 
+If a connection or parameter is named differently per environment (e.g. `finance_db` in DEV vs `finance_db_uat` in UAT), exact name matching won't find it. Pass `--cross-env-names-file` (a JSON config listing each one's name in every environment) and `--target-env` (which environment you're matching against) to match across the difference instead:
+
+```bash
+icedq generate-mapping \
+  --bundle ./finance.zip \
+  --output ./mapping.json \
+  --cross-env-names-file ./resource-names-config.json \
+  --target-env UAT
+```
+
+See [generate-mapping-action's documentation](https://github.com/marketplace/actions/icedq-generate-mapping) for the config file format.
+
 ### `icedq import`
 
 Submits a bundle, polls until complete, parses the log.

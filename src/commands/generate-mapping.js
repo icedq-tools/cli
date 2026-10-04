@@ -15,6 +15,11 @@ export async function runGenerateMapping(rawOpts) {
 
   if (!rawOpts.bundle) throw new CliError('--bundle is required');
   if (!rawOpts.output) throw new CliError('--output is required');
+  if (rawOpts.crossEnvNamesFile && !rawOpts.targetEnv) {
+    throw new CliError('--target-env is required when --cross-env-names-file is provided');
+  }
+
+  const nameConfig = await loadNameConfig(rawOpts.crossEnvNamesFile);
 
   const cfg = loadConfig(rawOpts);
   const auth = new KeycloakClientCredentialsAuth({
@@ -61,10 +66,10 @@ export async function runGenerateMapping(rawOpts) {
   });
 
   // Step 2: resolve connections from target environment
-  const connections = await resolveConnections(client, srcConnections);
+  const connections = await resolveConnections(client, srcConnections, nameConfig, rawOpts.targetEnv);
 
   // Step 3: resolve parameters from target environment
-  const parameters = await resolveParameters(client, srcParameters);
+  const parameters = await resolveParameters(client, srcParameters, nameConfig, rawOpts.targetEnv);
 
   // Step 4: resolve custom fields from target environment
   const customFields = await resolveCustomFields(client, srcCustomFields);
@@ -91,7 +96,7 @@ export async function runGenerateMapping(rawOpts) {
   new Reporter(rawOpts.outputFormat || 'text').emit(result);
 }
 
-async function resolveConnections(client, srcConnections) {
+async function resolveConnections(client, srcConnections, nameConfig, targetEnv) {
   if (srcConnections.length === 0) return [];
 
   // Group source connections by connectorId
@@ -112,24 +117,25 @@ async function resolveConnections(client, srcConnections) {
     }, `connections with connectorId=${connectorId}`);
 
     for (const src of srcConns) {
+      const searchName = resolveOverrideName(nameConfig, 'connections', src.name, targetEnv);
       const match = targetItems.find(
-        (t) => t.name.toLowerCase() === src.name.toLowerCase()
+        (t) => t.name.toLowerCase() === searchName.toLowerCase()
       );
       if (!match) {
         throw new CliError(
-          `Connection "${src.name}" (connectorId: ${connectorId}) was not found in the target environment. ` +
+          `Connection "${searchName}" (connectorId: ${connectorId}) was not found in the target environment. ` +
           `Ensure a connection with this name exists in the target workspace before generating the mapping.`
         );
       }
       mappings.push({ existingId: src.id, newId: match.id, action: 'override' });
-      log.info('Mapped connection', { name: src.name, existingId: src.id, newId: match.id });
+      log.info('Mapped connection', { name: src.name, searchName, existingId: src.id, newId: match.id });
     }
   }
 
   return mappings;
 }
 
-async function resolveParameters(client, srcParameters) {
+async function resolveParameters(client, srcParameters, nameConfig, targetEnv) {
   if (srcParameters.length === 0) return [];
 
   log.info('Searching parameters in target');
@@ -147,20 +153,57 @@ async function resolveParameters(client, srcParameters) {
 
   const mappings = [];
   for (const src of srcParameters) {
+    const searchName = resolveOverrideName(nameConfig, 'parameters', src.name, targetEnv);
     const match = targetItems.find(
-      (t) => t.name.toLowerCase() === src.name.toLowerCase()
+      (t) => t.name.toLowerCase() === searchName.toLowerCase()
     );
     if (!match) {
       log.warn(
-        `Could not find a parameter named "${src.name}" in the target environment -- skipping it in the mapping file`,
-        { name: src.name }
+        `Could not find a parameter named "${searchName}" in the target environment -- skipping it in the mapping file`,
+        { name: src.name, searchName }
       );
       continue;
     }
     mappings.push({ existingId: src.id, newId: match.id, action: 'upsert' });
-    log.info('Mapped parameter', { name: src.name, existingId: src.id, newId: match.id });
+    log.info('Mapped parameter', { name: src.name, searchName, existingId: src.id, newId: match.id });
   }
   return mappings;
+}
+
+// Reads and parses --cross-env-names-file, if provided.
+async function loadNameConfig(crossEnvNamesFile) {
+  if (!crossEnvNamesFile) return null;
+  const configPath = path.resolve(crossEnvNamesFile);
+  try {
+    const text = await readFile(configPath, 'utf8');
+    return JSON.parse(text);
+  } catch (err) {
+    throw new CliError(`could not parse --cross-env-names-file at ${configPath}: ${err.message}`);
+  }
+}
+
+// Looks up the per-environment override name for a source name within one category
+// (connections/parameters) of the cross-env names config. The config is keyed by a
+// canonical label per resource, each holding a map of environment -> actual name
+// in that environment, e.g. { "finance_db": { "DEV": "finance_db", "UAT": "finance_db_uat" } }.
+// Finds whichever canonical entry lists srcName under any environment, then returns
+// that same entry's name for targetEnv. Falls back to srcName if nameConfig/targetEnv
+// is absent, no entry lists srcName, or that entry has no name for targetEnv.
+function resolveOverrideName(nameConfig, category, srcName, targetEnv) {
+  if (!nameConfig || !targetEnv) return srcName;
+  const entries = nameConfig[category];
+  if (!entries) return srcName;
+
+  for (const envNames of Object.values(entries)) {
+    const listsSrcName = Object.values(envNames).some(
+      (n) => typeof n === 'string' && n.toLowerCase() === srcName.toLowerCase()
+    );
+    if (listsSrcName) {
+      const envKey = Object.keys(envNames).find((k) => k.toLowerCase() === targetEnv.toLowerCase());
+      return (envKey && envNames[envKey]) || srcName;
+    }
+  }
+  return srcName;
 }
 
 async function resolveCustomFields(client, srcCustomFields) {

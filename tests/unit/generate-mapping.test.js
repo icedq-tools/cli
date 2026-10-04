@@ -70,7 +70,7 @@ const SCREENS_RESP = [
 
 // ── base opts factory ─────────────────────────────────────────────────────────
 
-function makeOpts(baseUrl, bundlePath, outputFile) {
+function makeOpts(baseUrl, bundlePath, outputFile, extra = {}) {
   return {
     bundle: bundlePath,
     output: outputFile,
@@ -81,7 +81,8 @@ function makeOpts(baseUrl, bundlePath, outputFile) {
     orgId: 'org-1',
     accountId: 'acct-1',
     workspaceId: 'wksc-1',
-    outputFormat: 'json'
+    outputFormat: 'json',
+    ...extra
   };
 }
 
@@ -110,6 +111,12 @@ before(async () => {
 after(async () => {
   await rm(tmpDir, { recursive: true, force: true });
 });
+
+async function writeNameConfig(name, config) {
+  const configPath = path.join(tmpDir, name);
+  await writeFile(configPath, JSON.stringify(config), 'utf8');
+  return configPath;
+}
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
@@ -452,6 +459,247 @@ describe('runGenerateMapping', () => {
     } finally {
       server.close();
     }
+  });
+
+  describe('cross-env-names-file / target-env', () => {
+    test('--target-env required when --cross-env-names-file is set', async () => {
+      const outputFile = path.join(tmpDir, 'mapping-cenf-no-env.json');
+      const configPath = await writeNameConfig('cenf-no-env.json', {});
+
+      await assert.rejects(
+        () =>
+          runGenerateMapping(
+            makeOpts('http://127.0.0.1:1', bundlePath, outputFile, { crossEnvNamesFile: configPath })
+          ),
+        (err) => {
+          assert.ok(err.message.includes('--target-env is required'));
+          return true;
+        }
+      );
+    });
+
+    test('invalid --cross-env-names-file JSON throws a clear CliError', async () => {
+      const outputFile = path.join(tmpDir, 'mapping-cenf-bad-json.json');
+      const configPath = path.join(tmpDir, 'cenf-bad.json');
+      await writeFile(configPath, 'not json', 'utf8');
+
+      await assert.rejects(
+        () =>
+          runGenerateMapping(
+            makeOpts('http://127.0.0.1:1', bundlePath, outputFile, {
+              crossEnvNamesFile: configPath,
+              targetEnv: 'UAT'
+            })
+          ),
+        (err) => {
+          assert.ok(err.message.includes('could not parse --cross-env-names-file'));
+          return true;
+        }
+      );
+    });
+
+    test('connection matched via cross-env-names-file override for target-env', async () => {
+      const outputFile = path.join(tmpDir, 'mapping-cenf-conn.json');
+      const configPath = await writeNameConfig('cenf-conn.json', {
+        connections: {
+          finance_db: { DEV: 'Oracle-test', UAT: 'oracle-test-uat' }
+        }
+      });
+
+      const { server, baseUrl } = await startStubServer((req, res, body) => {
+        if (handleAuth(req, res, body)) return;
+        if (req.url.includes('/api/v1/internal/imports/mapping')) {
+          // Only connections, to isolate this test to connection resolution
+          return json(res, 200, { ...EXPECTED_MAPPING_RESP, parameters: [], customFields: [] });
+        }
+        if (req.url.includes('/api/v1/connections/search')) {
+          // Target only has the UAT-suffixed name, not the literal source name
+          return json(res, 200, {
+            pageable: { pageNo: 1, pageSize: 1000, pages: 1, size: 1 },
+            items: [{ id: 'conn-tgt-uat', name: 'oracle-test-uat', connectorId: 'oracle' }]
+          });
+        }
+        json(res, 404, { message: 'not found' });
+      });
+
+      try {
+        await runGenerateMapping(
+          makeOpts(baseUrl, bundlePath, outputFile, { crossEnvNamesFile: configPath, targetEnv: 'UAT' })
+        );
+        const result = JSON.parse(await readFile(outputFile, 'utf8'));
+        assert.deepEqual(result.mapping.connections[0], {
+          existingId: 'conn-src-001',
+          newId: 'conn-tgt-uat',
+          action: 'override'
+        });
+      } finally {
+        server.close();
+      }
+    });
+
+    test('connection not listed in cross-env-names-file falls back to source name search', async () => {
+      const outputFile = path.join(tmpDir, 'mapping-cenf-conn-unlisted.json');
+      const configPath = await writeNameConfig('cenf-conn-unlisted.json', {
+        connections: { some_other_connection: { UAT: 'something-else' } }
+      });
+
+      const { server, baseUrl } = await startStubServer((req, res, body) => {
+        if (handleAuth(req, res, body)) return;
+        if (req.url.includes('/api/v1/internal/imports/mapping')) {
+          return json(res, 200, { ...EXPECTED_MAPPING_RESP, parameters: [], customFields: [] });
+        }
+        if (req.url.includes('/api/v1/connections/search')) {
+          return json(res, 200, CONNECTIONS_SEARCH_RESP); // matches 'Oracle-test' directly
+        }
+        json(res, 404, { message: 'not found' });
+      });
+
+      try {
+        await runGenerateMapping(
+          makeOpts(baseUrl, bundlePath, outputFile, { crossEnvNamesFile: configPath, targetEnv: 'UAT' })
+        );
+        const result = JSON.parse(await readFile(outputFile, 'utf8'));
+        assert.equal(result.mapping.connections[0].newId, 'conn-tgt-001');
+      } finally {
+        server.close();
+      }
+    });
+
+    test('connection override name still not found in target -> same fail-fast as before', async () => {
+      const outputFile = path.join(tmpDir, 'mapping-cenf-conn-notfound.json');
+      const configPath = await writeNameConfig('cenf-conn-notfound.json', {
+        connections: { finance_db: { DEV: 'Oracle-test', UAT: 'oracle-test-uat' } }
+      });
+
+      const { server, baseUrl } = await startStubServer((req, res, body) => {
+        if (handleAuth(req, res, body)) return;
+        if (req.url.includes('/api/v1/internal/imports/mapping')) {
+          return json(res, 200, EXPECTED_MAPPING_RESP);
+        }
+        if (req.url.includes('/api/v1/connections/search')) {
+          return json(res, 200, {
+            pageable: { pageNo: 1, pageSize: 1000, pages: 1, size: 1 },
+            items: [{ id: 'conn-tgt-999', name: 'totally-different', connectorId: 'oracle' }]
+          });
+        }
+        json(res, 404, { message: 'not found' });
+      });
+
+      try {
+        await assert.rejects(
+          () =>
+            runGenerateMapping(
+              makeOpts(baseUrl, bundlePath, outputFile, { crossEnvNamesFile: configPath, targetEnv: 'UAT' })
+            ),
+          (err) => {
+            assert.ok(err.message.includes('oracle-test-uat'));
+            return true;
+          }
+        );
+      } finally {
+        server.close();
+      }
+    });
+
+    test('parameter matched via cross-env-names-file override for target-env', async () => {
+      const outputFile = path.join(tmpDir, 'mapping-cenf-param.json');
+      const configPath = await writeNameConfig('cenf-param.json', {
+        parameters: {
+          parameters_set_1: { DEV: 'Param_A', UAT: 'Param_A_uat' }
+        }
+      });
+
+      const { server, baseUrl } = await startStubServer((req, res, body) => {
+        if (handleAuth(req, res, body)) return;
+        if (req.url.includes('/api/v1/internal/imports/mapping')) {
+          // Only parameters, to isolate this test to parameter resolution
+          return json(res, 200, { ...EXPECTED_MAPPING_RESP, connections: [], customFields: [] });
+        }
+        if (req.url.includes('/api/v1/parameters/search')) {
+          return json(res, 200, {
+            pageable: { pageNo: 1, pageSize: 1000, pages: 1, size: 1 },
+            items: [{ id: 'parm-tgt-uat', name: 'Param_A_uat' }]
+          });
+        }
+        json(res, 404, { message: 'not found' });
+      });
+
+      try {
+        await runGenerateMapping(
+          makeOpts(baseUrl, bundlePath, outputFile, { crossEnvNamesFile: configPath, targetEnv: 'UAT' })
+        );
+        const result = JSON.parse(await readFile(outputFile, 'utf8'));
+        assert.deepEqual(result.mapping.parameters[0], {
+          existingId: 'parm-src-001',
+          newId: 'parm-tgt-uat',
+          action: 'upsert'
+        });
+      } finally {
+        server.close();
+      }
+    });
+
+    test('target-env lookup is case-insensitive (config key "UAT", --target-env "uat")', async () => {
+      const outputFile = path.join(tmpDir, 'mapping-cenf-env-case.json');
+      const configPath = await writeNameConfig('cenf-env-case.json', {
+        connections: { finance_db: { DEV: 'Oracle-test', UAT: 'oracle-test-uat' } }
+      });
+
+      const { server, baseUrl } = await startStubServer((req, res, body) => {
+        if (handleAuth(req, res, body)) return;
+        if (req.url.includes('/api/v1/internal/imports/mapping')) {
+          return json(res, 200, { ...EXPECTED_MAPPING_RESP, parameters: [], customFields: [] });
+        }
+        if (req.url.includes('/api/v1/connections/search')) {
+          return json(res, 200, {
+            pageable: { pageNo: 1, pageSize: 1000, pages: 1, size: 1 },
+            items: [{ id: 'conn-tgt-uat', name: 'oracle-test-uat', connectorId: 'oracle' }]
+          });
+        }
+        json(res, 404, { message: 'not found' });
+      });
+
+      try {
+        await runGenerateMapping(
+          makeOpts(baseUrl, bundlePath, outputFile, { crossEnvNamesFile: configPath, targetEnv: 'uat' })
+        );
+        const result = JSON.parse(await readFile(outputFile, 'utf8'));
+        assert.equal(result.mapping.connections[0].newId, 'conn-tgt-uat');
+      } finally {
+        server.close();
+      }
+    });
+
+    test('parameter override name still not found in target -> skipped like before', async () => {
+      const outputFile = path.join(tmpDir, 'mapping-cenf-param-notfound.json');
+      const configPath = await writeNameConfig('cenf-param-notfound.json', {
+        parameters: { parameters_set_1: { DEV: 'Param_A', UAT: 'Param_A_uat' } }
+      });
+
+      const { server, baseUrl } = await startStubServer((req, res, body) => {
+        if (handleAuth(req, res, body)) return;
+        if (req.url.includes('/api/v1/internal/imports/mapping')) {
+          return json(res, 200, { ...EXPECTED_MAPPING_RESP, connections: [], customFields: [] });
+        }
+        if (req.url.includes('/api/v1/parameters/search')) {
+          return json(res, 200, {
+            pageable: { pageNo: 1, pageSize: 1000, pages: 1, size: 1 },
+            items: [{ id: 'parm-tgt-999', name: 'totally-different' }]
+          });
+        }
+        json(res, 404, { message: 'not found' });
+      });
+
+      try {
+        await runGenerateMapping(
+          makeOpts(baseUrl, bundlePath, outputFile, { crossEnvNamesFile: configPath, targetEnv: 'UAT' })
+        );
+        const result = JSON.parse(await readFile(outputFile, 'utf8'));
+        assert.equal('parameters' in result.mapping, false);
+      } finally {
+        server.close();
+      }
+    });
   });
 
   test('multiple screens — fields from all sections flattened for matching', async () => {

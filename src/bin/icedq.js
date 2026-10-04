@@ -51,6 +51,11 @@ addGlobalOptions(
     .description('Auto-generate a mapping file from an export bundle')
     .requiredOption('--bundle <path>', 'path to the export ZIP')
     .requiredOption('--output <path>', 'where to write the mapping JSON')
+    .option(
+      '--cross-env-names-file <path>',
+      'JSON config mapping each connection/parameter to its per-environment name, for cross-environment name matching'
+    )
+    .option('--target-env <label>', 'environment label to look up in --cross-env-names-file (required if that flag is set)')
 ).action(async (opts, cmd) => wrap(() => runGenerateMapping(merge(cmd, opts))));
 
 addGlobalOptions(
