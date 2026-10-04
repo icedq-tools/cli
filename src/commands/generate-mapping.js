@@ -69,10 +69,12 @@ export async function runGenerateMapping(rawOpts) {
   // Step 4: resolve custom fields from target environment
   const customFields = await resolveCustomFields(client, srcCustomFields);
 
-  const mappingDoc = {
-    useFqn: true,
-    mapping: { connections, parameters, customFields }
-  };
+  const mapping = {};
+  if (connections.length > 0) mapping.connections = connections;
+  if (parameters.length > 0) mapping.parameters = parameters;
+  if (customFields.length > 0) mapping.customFields = customFields;
+
+  const mappingDoc = { useFqn: true, mapping };
 
   const outputFile = path.resolve(rawOpts.output);
   await mkdir(path.dirname(outputFile), { recursive: true });
@@ -137,23 +139,28 @@ async function resolveParameters(client, srcParameters) {
     targetItems = await fetchAllPages(client, '/api/v1/parameters/search', {}, 'parameters');
   } catch (err) {
     if (err instanceof ApiError && err.code === 'ResultsNotFound') {
-      log.warn('No parameters found in target environment — mapping without newId');
-      return srcParameters.map((p) => ({ existingId: p.id, action: 'upsert' }));
+      targetItems = [];
+    } else {
+      throw err;
     }
-    throw err;
   }
 
-  return srcParameters.map((src) => {
+  const mappings = [];
+  for (const src of srcParameters) {
     const match = targetItems.find(
       (t) => t.name.toLowerCase() === src.name.toLowerCase()
     );
     if (!match) {
-      log.warn('Parameter not matched in target, mapping without newId', { name: src.name });
-      return { existingId: src.id, action: 'upsert' };
+      log.warn(
+        `Could not find a parameter named "${src.name}" in the target environment -- skipping it in the mapping file`,
+        { name: src.name }
+      );
+      continue;
     }
+    mappings.push({ existingId: src.id, newId: match.id, action: 'upsert' });
     log.info('Mapped parameter', { name: src.name, existingId: src.id, newId: match.id });
-    return { existingId: src.id, newId: match.id, action: 'upsert' };
-  });
+  }
+  return mappings;
 }
 
 async function resolveCustomFields(client, srcCustomFields) {
@@ -179,7 +186,10 @@ async function resolveCustomFields(client, srcCustomFields) {
   for (const fieldName of srcCustomFields) {
     const targetId = fieldMap.get(fieldName.toLowerCase());
     if (!targetId) {
-      log.warn('Custom field not found in target screens, skipping', { fieldName });
+      log.warn(
+        `Could not find a custom field named "${fieldName}" in the target environment -- skipping it in the mapping file`,
+        { fieldName }
+      );
       continue;
     }
     mappings.push({ existingId: fieldName, newId: targetId, action: 'override' });

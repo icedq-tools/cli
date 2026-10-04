@@ -261,7 +261,7 @@ describe('runGenerateMapping', () => {
     }
   });
 
-  test('parameters ResultsNotFound → entries written without newId', async () => {
+  test('parameters ResultsNotFound → parameters key omitted entirely', async () => {
     const outputFile = path.join(tmpDir, 'mapping-param-notfound.json');
 
     const { server, baseUrl } = await startStubServer((req, res, body) => {
@@ -284,9 +284,60 @@ describe('runGenerateMapping', () => {
     try {
       await runGenerateMapping(makeOpts(baseUrl, bundlePath, outputFile));
       const result = JSON.parse(await readFile(outputFile, 'utf8'));
-      assert.equal(result.mapping.parameters.length, 1);
-      assert.deepEqual(result.mapping.parameters[0], { existingId: 'parm-src-001', action: 'upsert' });
-      assert.equal('newId' in result.mapping.parameters[0], false);
+      assert.equal('parameters' in result.mapping, false);
+    } finally {
+      server.close();
+    }
+  });
+
+  test('parameter found in target but no name match → skipped, parameters key omitted', async () => {
+    const outputFile = path.join(tmpDir, 'mapping-param-nomatch.json');
+
+    const { server, baseUrl } = await startStubServer((req, res, body) => {
+      if (handleAuth(req, res, body)) return;
+      if (req.url.includes('/api/v1/internal/imports/mapping')) {
+        return json(res, 200, EXPECTED_MAPPING_RESP);
+      }
+      if (req.url.includes('/api/v1/connections/search')) {
+        return json(res, 200, CONNECTIONS_SEARCH_RESP);
+      }
+      if (req.url.includes('/api/v1/parameters/search')) {
+        return json(res, 200, {
+          pageable: { pageNo: 1, pageSize: 1000, pages: 1, size: 1 },
+          items: [{ id: 'parm-tgt-999', name: 'DifferentParam' }]
+        });
+      }
+      if (req.url.includes('/api/v1/screens/default/search')) {
+        return json(res, 200, SCREENS_RESP);
+      }
+      json(res, 404, { message: 'not found' });
+    });
+
+    try {
+      await runGenerateMapping(makeOpts(baseUrl, bundlePath, outputFile));
+      const result = JSON.parse(await readFile(outputFile, 'utf8'));
+      assert.equal('parameters' in result.mapping, false);
+    } finally {
+      server.close();
+    }
+  });
+
+  test('nothing to map at all → mapping is an empty object', async () => {
+    const outputFile = path.join(tmpDir, 'mapping-empty.json');
+
+    const { server, baseUrl } = await startStubServer((req, res, body) => {
+      if (handleAuth(req, res, body)) return;
+      if (req.url.includes('/api/v1/internal/imports/mapping')) {
+        return json(res, 200, {});
+      }
+      json(res, 404, { message: 'not found' });
+    });
+
+    try {
+      await runGenerateMapping(makeOpts(baseUrl, bundlePath, outputFile));
+      const result = JSON.parse(await readFile(outputFile, 'utf8'));
+      assert.equal(result.useFqn, true);
+      assert.deepEqual(result.mapping, {});
     } finally {
       server.close();
     }
