@@ -22,10 +22,19 @@ function toText(r) {
   const lines = [];
   lines.push(`Command:   ${r.command}`);
   if (r.taskId) lines.push(`Task ID:   ${r.taskId}`);
-  lines.push(`Status:    ${r.status}`);
+  if (r.instanceId) lines.push(`Instance ID: ${r.instanceId}`);
+  if (r.status !== undefined) lines.push(`Status:    ${r.status}`);
+  if (r.startedAt) lines.push(`Started:   ${r.startedAt}`);
   if (r.durationMs !== undefined) lines.push(`Duration:  ${(r.durationMs / 1000).toFixed(1)}s`);
   if (r.outputFile) lines.push(`Output:    ${r.outputFile}`);
   if (r.skippedCount !== undefined) lines.push(`Skipped:   ${r.skippedCount}`);
+  if (r.code) lines.push(`Code:      ${r.code}`);
+  if (r.message) lines.push(`Message:   ${r.message}`);
+  if (r.timedOut) lines.push(`Timed out: true`);
+  if (r.terminateRequested !== undefined) lines.push(`Terminate requested: ${r.terminateRequested}`);
+  if (r.terminateCode) lines.push(`Terminate code: ${r.terminateCode}`);
+  if (r.terminateMessage) lines.push(`Terminate message: ${r.terminateMessage}`);
+  if (r.terminateError) lines.push(`Terminate error: ${r.terminateError}`);
 
   if (r.skippedRules?.length) {
     lines.push('');
@@ -44,11 +53,20 @@ function toMarkdown(r) {
   const lines = [];
   lines.push(`## iceDQ ${r.command}`);
   lines.push('');
-  lines.push(`- **Status:** ${r.status}`);
+  if (r.status !== undefined) lines.push(`- **Status:** ${r.status}`);
   if (r.taskId) lines.push(`- **Task ID:** \`${r.taskId}\``);
+  if (r.instanceId) lines.push(`- **Instance ID:** \`${r.instanceId}\``);
+  if (r.startedAt) lines.push(`- **Started:** ${r.startedAt}`);
   if (r.durationMs !== undefined) lines.push(`- **Duration:** ${(r.durationMs / 1000).toFixed(1)}s`);
   if (r.outputFile) lines.push(`- **Output:** \`${r.outputFile}\``);
   if (r.skippedCount !== undefined) lines.push(`- **Skipped:** ${r.skippedCount}`);
+  if (r.code) lines.push(`- **Code:** \`${r.code}\``);
+  if (r.message) lines.push(`- **Message:** ${r.message}`);
+  if (r.timedOut) lines.push(`- **Timed out:** true`);
+  if (r.terminateRequested !== undefined) lines.push(`- **Terminate requested:** ${r.terminateRequested}`);
+  if (r.terminateCode) lines.push(`- **Terminate code:** \`${r.terminateCode}\``);
+  if (r.terminateMessage) lines.push(`- **Terminate message:** ${r.terminateMessage}`);
+  if (r.terminateError) lines.push(`- **Terminate error:** ${r.terminateError}`);
 
   if (r.skippedRules?.length) {
     lines.push('');

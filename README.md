@@ -80,16 +80,99 @@ icedq import \
 
 A hand-authored `mapping.json` works too — see each companion Action's own documentation (linked below) for examples.
 
+### `icedq run`
+
+Triggers a rule or workflow run (one endpoint, split into two subcommands for clarity) and polls until it reaches a terminal status. On failure, the full run result is printed automatically; on success, only if `--show-result` is passed.
+
+```bash
+icedq run rule --id rule-77f73152-17cc-5b35-9841-13e24a4039b7
+icedq run workflow --id wkfl-e6284f0a-5379-5eaf-a31a-017236bbe72a --sequence 1,3
+icedq run rule --id rule-77f7... --show-result          # also print the result on success
+```
+
+If a run goes on far longer than expected, `--terminate-on-timeout` cancels it (sends a terminate request) as soon as `--timeout` is reached, instead of leaving it running server-side:
+
+```bash
+icedq run workflow --id wkfl-e6284f0a-... --timeout 600 --terminate-on-timeout
+```
+
+**Overrides** — swap connections/parameters, or tag a run with summary variables, at trigger time without touching the saved rule/workflow definition, via `--overrides-file <path>` (`.json` or `.csv`, both validated the same way, producing identical requests for equivalent input):
+
+```bash
+icedq run rule --id rule-77f7... --overrides-file overrides.json
+```
+
+Connection override (source only — the common case for a rule, which has a single connection):
+```json
+[{ "connections": [{ "type": "source", "find": "conn-OLD-id", "replace": "conn-NEW-id" }] }]
+```
+```csv
+block,sequence,type,conn_type,find,replace,key,value
+1,,connection,source,conn-OLD-id,conn-NEW-id,,
+```
+
+Parameter override (swap the parameter file the rule/workflow uses):
+```json
+[{ "parameters": [{ "find": "parm-OLD-id", "replace": "parm-NEW-id" }] }]
+```
+```csv
+block,sequence,type,conn_type,find,replace,key,value
+1,,parameter,,parm-OLD-id,parm-NEW-id,,
+```
+
+Summary variables — tag the run's result with key/value metadata instead of swapping a file (`useKeyValuePair: true` on the wire; can be combined with `connections`, but not with `parameters`, in the same block):
+```json
+[{ "variables": { "triggeredBy": "nightly-ci" } }]
+```
+```csv
+block,sequence,type,conn_type,find,replace,key,value
+1,,variable,,,,triggeredBy,nightly-ci
+```
+
+Combine a connection swap and a parameter swap in one block by giving the rows/objects the same scope — one JSON object, or CSV rows sharing a `block` id:
+```json
+[{
+  "connections": [{ "type": "source", "find": "conn-OLD-id", "replace": "conn-NEW-id" }],
+  "parameters": [{ "find": "parm-OLD-id", "replace": "parm-NEW-id" }]
+}]
+```
+```csv
+block,sequence,type,conn_type,find,replace,key,value
+1,,connection,source,conn-OLD-id,conn-NEW-id,,
+1,,parameter,,parm-OLD-id,parm-NEW-id,,
+```
+
+Scope an override to specific workflow steps with the block's own `sequence` (comma-separated inside the quoted CSV cell, or a JSON array) — independent of `--sequence`, which instead controls which steps the *run itself* executes:
+```bash
+# run only steps 1 and 3, AND scope the connection override to just step 3
+icedq run workflow --id wkfl-e628... --sequence 1,3 --overrides-file overrides.json
+```
+```json
+[{ "sequence": [3], "connections": [{ "type": "source", "find": "conn-OLD-id", "replace": "conn-NEW-id" }] }]
+```
+
+Rules have no steps, so `sequence` isn't valid there (neither `--sequence` nor inside an override block). All ids are checked (`wkfl-`/`rule-`/`conn-`/`parm-`) before anything is sent.
+
+### `icedq status` / `icedq result` / `icedq terminate`
+
+Given the `instance-id` printed by `icedq run`, check on, fetch full detail for, or cancel a run independently — useful when you triggered a run elsewhere (or earlier) and don't want to poll from the same process. `rule`/`workflow` is purely for symmetry with `icedq run`: both hit the exact same endpoint regardless of resource type.
+
+```bash
+icedq status rule --id 185274
+icedq status workflow --id 185274 --output-format json   # machine-readable: {"status": "...", ...}
+icedq result rule --id 185274
+icedq terminate workflow --id 185274
+```
+
 ## GitHub Actions
 
-For CI/CD usage via GitHub Actions, use these three companion Actions — each documentation covers its own inputs/outputs, usage examples:
+For CI/CD usage via GitHub Actions, use these companion Actions — each documentation covers its own inputs/outputs, usage examples:
 
 - [`icedq-tools/export-action`](https://github.com/marketplace/actions/icedq-export) — export rules/workflows/folders to a bundle
 - [`icedq-tools/generate-mapping-action`](https://github.com/marketplace/actions/icedq-generate-mapping) — auto-generate a mapping file from a bundle
 - [`icedq-tools/import-action`](https://github.com/marketplace/actions/icedq-import) — import a bundle into a target workspace
+- [`icedq-tools/run-action`](https://github.com/marketplace/actions/icedq-run) — trigger a rule or workflow run and wait for it to finish
 
 ## Roadmap
 
 - **Connections** — export and import support, alongside the existing rules, workflows, and folders.
-- **`icedq run`** — trigger a rule or workflow run directly (with a companion `run-action`), rather than only promoting them between environments.
-- **`icedq status`** — check on or reattach to an existing export/import/run task, for recovering from a timed-out or interrupted poll.

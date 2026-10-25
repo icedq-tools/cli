@@ -8,15 +8,19 @@ const BACKOFF = 2;
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
+const VALID_KINDS = new Set(['exports', 'imports', 'workflowruns']);
+
 export async function pollTask(client, kind, taskId, opts = {}) {
-  if (kind !== 'exports' && kind !== 'imports') {
-    throw new Error(`pollTask: kind must be 'exports' or 'imports', got '${kind}'`);
+  if (!VALID_KINDS.has(kind)) {
+    throw new Error(`pollTask: kind must be one of ${[...VALID_KINDS].join(', ')}, got '${kind}'`);
   }
 
   const timeoutMs = (opts.timeoutSec ?? 1800) * 1000;
   const onTick = opts.onTick || (() => {});
   const sleeper = opts.sleep || sleep;
   const now = opts.now || (() => Date.now());
+  const buildPath = opts.buildPath || ((k, id) => `/api/v1/${k}/${id}/status`);
+  const checkTerminal = opts.isTerminal || isTerminal;
 
   const start = now();
   let delay = opts.initialDelayMs ?? INITIAL_DELAY_MS;
@@ -35,7 +39,7 @@ export async function pollTask(client, kind, taskId, opts = {}) {
 
     let response;
     try {
-      response = await client.get(`/api/v1/${kind}/${taskId}/status`, { retryOn5xx: true });
+      response = await client.get(buildPath(kind, taskId), { retryOn5xx: true });
     } catch (err) {
       log.warn('Status poll failed', { taskId, attempt, error: err.message });
       throw err;
@@ -44,7 +48,7 @@ export async function pollTask(client, kind, taskId, opts = {}) {
     const status = extractStatus(response);
     onTick({ status, attempt, elapsedMs: now() - start, response });
 
-    if (isTerminal(status)) {
+    if (checkTerminal(status)) {
       return { status, response, attempts: attempt, elapsedMs: now() - start };
     }
 

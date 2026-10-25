@@ -4,6 +4,10 @@ import { Command, Option } from 'commander';
 import { runExport } from '../commands/export.js';
 import { runImport } from '../commands/import.js';
 import { runGenerateMapping } from '../commands/generate-mapping.js';
+import { runTrigger } from '../commands/run.js';
+import { runStatus } from '../commands/status.js';
+import { runTerminate } from '../commands/terminate.js';
+import { runResult } from '../commands/result.js';
 import { CliError } from '../core/errors.js';
 import { log } from '../core/logger.js';
 
@@ -70,6 +74,63 @@ addGlobalOptions(
     .option('--terminate-on-conflict', 'cancel any active import in the target workspace and retry', false)
     .option('--retain-log <path>', 'write the full import log to this path')
 ).action(async (opts, cmd) => wrap(() => runImport(merge(cmd, opts))));
+
+const runGroup = program.command('run').description('Trigger a rule or workflow run and poll to completion');
+for (const resourceType of ['workflow', 'rule']) {
+  const prefix = resourceType === 'workflow' ? 'wkfl-' : 'rule-';
+  addGlobalOptions(
+    runGroup
+      .command(resourceType)
+      .description(`Trigger a ${resourceType} run`)
+      .requiredOption('--id <id>', `${resourceType} object ID (${prefix}<uuid>)`)
+      .option('--show-result', 'also print full run result on success (always printed on failure)', false)
+      .option('--terminate-on-timeout', 'if --timeout is reached, terminate the run and stop waiting immediately', false)
+      .option('--overrides-file <path>', 'connection/parameter/variable overrides (.json or .csv), validated')
+      .option('--sequence <steps>', 'comma-separated 1-based step numbers to run (workflow only)')
+      .addHelpText(
+        'after',
+        `\nExamples:\n` +
+          `  $ icedq run ${resourceType} --id ${prefix}77f73152-17cc-5b35-9841-13e24a4039b7\n` +
+          `  $ icedq run ${resourceType} --id ${prefix}... --show-result\n` +
+          (resourceType === 'workflow' ? `  $ icedq run workflow --id ${prefix}... --sequence 1,3 --terminate-on-timeout\n` : '') +
+          `  $ icedq run ${resourceType} --id ${prefix}... --overrides-file overrides.json\n` +
+          `\nSee the @icedq/cli README for the overrides-file format (.json or .csv).`
+      )
+  ).action(async (opts, cmd) => wrap(() => runTrigger({ ...merge(cmd, opts), resourceType })));
+}
+
+const statusGroup = program.command('status').description('Fetch the current status of a run');
+for (const resourceType of ['workflow', 'rule']) {
+  addGlobalOptions(
+    statusGroup
+      .command(resourceType)
+      .description(`Fetch the current status of a ${resourceType} run`)
+      .requiredOption('--id <id>', 'run instance ID (returned by `icedq run` as instance-id)')
+      .addHelpText('after', `\nExample:\n  $ icedq status ${resourceType} --id 185274\n`)
+  ).action(async (opts, cmd) => wrap(() => runStatus(merge(cmd, opts))));
+}
+
+const terminateGroup = program.command('terminate').description('Terminate a running instance');
+for (const resourceType of ['workflow', 'rule']) {
+  addGlobalOptions(
+    terminateGroup
+      .command(resourceType)
+      .description(`Terminate a running ${resourceType} instance`)
+      .requiredOption('--id <id>', 'run instance ID (returned by `icedq run` as instance-id)')
+      .addHelpText('after', `\nExample:\n  $ icedq terminate ${resourceType} --id 185274\n`)
+  ).action(async (opts, cmd) => wrap(() => runTerminate(merge(cmd, opts))));
+}
+
+const resultGroup = program.command('result').description('Fetch full run result detail');
+for (const resourceType of ['workflow', 'rule']) {
+  addGlobalOptions(
+    resultGroup
+      .command(resourceType)
+      .description(`Fetch full result detail for a ${resourceType} run`)
+      .requiredOption('--id <id>', 'run instance ID (returned by `icedq run` as instance-id)')
+      .addHelpText('after', `\nExample:\n  $ icedq result ${resourceType} --id 185274\n`)
+  ).action(async (opts, cmd) => wrap(() => runResult(merge(cmd, opts))));
+}
 
 function merge(cmd, localOpts) {
   return { ...cmd.parent.opts(), ...cmd.opts(), ...localOpts };

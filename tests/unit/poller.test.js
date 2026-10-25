@@ -86,4 +86,43 @@ describe('pollTask', () => {
     });
     assert.deepEqual(ticks, ['Running', 'Running', 'Completed']);
   });
+
+  test('accepts the workflowruns kind', async () => {
+    const client = fakeClient([{ status: 'Completed' }]);
+    const out = await pollTask(client, 'workflowruns', 'inst-1', {
+      timeoutSec: 60,
+      sleep: async () => {},
+      now: ((t = 0) => () => (t += 100))()
+    });
+    assert.equal(out.status, 'Completed');
+  });
+
+  test('uses a custom buildPath when provided', async () => {
+    const calls = [];
+    const client = {
+      get: async (path) => {
+        calls.push(path);
+        return { status: 'Completed' };
+      }
+    };
+    await pollTask(client, 'workflowruns', 'inst-2', {
+      timeoutSec: 60,
+      sleep: async () => {},
+      now: ((t = 0) => () => (t += 100))(),
+      buildPath: (kind, id) => `/api/v1/${kind}/${id}`
+    });
+    assert.deepEqual(calls, ['/api/v1/workflowruns/inst-2']);
+  });
+
+  test('uses a custom isTerminal when provided', async () => {
+    const client = fakeClient([{ status: 'running' }, { status: 'running' }, { status: 'done' }]);
+    const out = await pollTask(client, 'workflowruns', 'inst-3', {
+      timeoutSec: 60,
+      sleep: async () => {},
+      now: ((t = 0) => () => (t += 100))(),
+      isTerminal: (status) => status === 'done'
+    });
+    assert.equal(out.status, 'done');
+    assert.equal(out.attempts, 3);
+  });
 });

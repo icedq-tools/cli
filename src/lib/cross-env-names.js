@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { CliError } from '../core/errors.js';
+import { parseCsvLine } from './csv.js';
 
 const TYPE_TO_CATEGORY = { connection: 'connections', parameter: 'parameters' };
 const CATEGORY_KEYS = ['connections', 'parameters'];
@@ -95,35 +96,4 @@ function parseCsvConfig(text, filePath) {
   }
 
   return config;
-}
-
-// Minimal RFC4180 CSV line parser: handles quoted fields, embedded commas, and "" escaped quotes.
-function parseCsvLine(line) {
-  const fields = [];
-  let field = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (line[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        field += c;
-      }
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ',') {
-      fields.push(field);
-      field = '';
-    } else {
-      field += c;
-    }
-  }
-  fields.push(field);
-  return fields;
 }
