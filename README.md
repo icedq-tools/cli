@@ -53,7 +53,7 @@ Uploads an export bundle, resolves connections/parameters/custom fields by name 
 icedq generate-mapping --bundle ./finance.zip --output ./mapping.json
 ```
 
-If a connection or parameter is named differently per environment (e.g. `finance_db` in DEV vs `finance_db_uat` in UAT), exact name matching won't find it. Pass `--cross-env-names-file` (a JSON config listing each one's name in every environment) and `--target-env` (which environment you're matching against) to match across the difference instead:
+If a connection or parameter is named differently per environment (e.g. `finance_db` in DEV vs `finance_db_uat` in UAT), exact name matching won't find it. Pass `--cross-env-names-file` (a `.json` or `.csv` config listing each one's name in every environment) and `--target-env` (which environment you're matching against) to match across the difference instead:
 
 ```bash
 icedq generate-mapping \

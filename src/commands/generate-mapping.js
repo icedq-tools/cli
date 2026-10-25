@@ -6,6 +6,7 @@ import { IcedqApiClient } from '../core/client.js';
 import { Reporter } from '../core/reporter.js';
 import { ApiError, CliError } from '../core/errors.js';
 import { log, setLevel } from '../core/logger.js';
+import { loadCrossEnvNames } from '../lib/cross-env-names.js';
 
 const PAGE_SIZE = 1000;
 
@@ -170,16 +171,10 @@ async function resolveParameters(client, srcParameters, nameConfig, targetEnv) {
   return mappings;
 }
 
-// Reads and parses --cross-env-names-file, if provided.
+// Reads and parses --cross-env-names-file, if provided. Accepts .json or .csv.
 async function loadNameConfig(crossEnvNamesFile) {
   if (!crossEnvNamesFile) return null;
-  const configPath = path.resolve(crossEnvNamesFile);
-  try {
-    const text = await readFile(configPath, 'utf8');
-    return JSON.parse(text);
-  } catch (err) {
-    throw new CliError(`could not parse --cross-env-names-file at ${configPath}: ${err.message}`);
-  }
+  return loadCrossEnvNames(path.resolve(crossEnvNamesFile));
 }
 
 // Looks up the per-environment override name for a source name within one category
